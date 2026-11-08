@@ -115,13 +115,50 @@ Item {
   // Album art: local files, plus Spotify's own image server (the same image
   // the Spotify app already downloaded). Any other remote URL is ignored, so
   // a player cannot make the lock screen fetch from an arbitrary host.
+  //
+  // Remote art is downloaded by curl in its own process and shown from a local
+  // file. Letting QML's Image fetch an https URL makes the shell's image loader
+  // thread initialize OpenSSL, which crashed the whole shell (SIGSEGV inside
+  // libcrypto while loading CA certificates) -- fatal for a lock screen.
   readonly property var trustedArtHosts: ["i.scdn.co"]
-  readonly property string artUrl: {
-    var u = player && player.trackArtUrl ? String(player.trackArtUrl) : ""
-    if (u.indexOf("file://") === 0) return u
-    var m = /^https:\/\/([^\/:?#]+)\//.exec(u)
-    return m && trustedArtHosts.indexOf(m[1].toLowerCase()) !== -1 ? u : ""
+  readonly property string rawArtUrl: player && player.trackArtUrl ? String(player.trackArtUrl) : ""
+  readonly property string remoteArtUrl: {
+    var m = /^https:\/\/([^\/:?#\s]+)\/[^\s'"]*$/.exec(rawArtUrl)
+    return m && trustedArtHosts.indexOf(m[1].toLowerCase()) !== -1 ? rawArtUrl : ""
   }
+  readonly property string artCachePath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/glasslock-art"
+  property string downloadedArtFor: ""
+  property int artVersion: 0
+  readonly property string artUrl: {
+    if (rawArtUrl.indexOf("file://") === 0) return rawArtUrl
+    if (remoteArtUrl.length > 0 && downloadedArtFor === remoteArtUrl)
+      return Util.fileUrl(artCachePath) + "?v=" + artVersion
+    return ""
+  }
+
+  onRemoteArtUrlChanged: fetchArt()
+  function fetchArt() {
+    if (remoteArtUrl.length === 0 || downloadedArtFor === remoteArtUrl) return
+    if (artProc.running) { artRetry.restart(); return }
+    artProc.wanted = remoteArtUrl
+    artProc.command = ["curl", "-fsS", "--max-time", "6", "--max-filesize", "2097152",
+      "-o", artCachePath, remoteArtUrl]
+    artProc.running = true
+  }
+
+  Process {
+    id: artProc
+    property string wanted: ""
+    onExited: function(exitCode) {
+      if (exitCode === 0 && wanted === root.remoteArtUrl) {
+        root.artVersion += 1
+        root.downloadedArtFor = wanted
+      }
+      if (root.remoteArtUrl !== wanted) root.fetchArt()
+    }
+  }
+
+  Timer { id: artRetry; interval: 300; onTriggered: root.fetchArt() }
 
   // ---- Battery (UPower) ----
   readonly property var battery: UPower.displayDevice
@@ -276,6 +313,7 @@ Item {
     shown = false
     Qt.callLater(function() { root.shown = true })
     refreshWeather()
+    fetchArt()
   }
 
   onPasswordTextChanged: syncPasswordText()

@@ -61,7 +61,7 @@ To change anything, add options to Glasslock's entry under `plugins` in `~/.conf
 ## Privacy
 
 - **Weather**: while the screen is locked, Glasslock asks Omarchy's location service (`geo.omarchy.org`, the same one the bar's weather uses) for your city once, then [Open-Meteo](https://open-meteo.com) for the temperature, at most every 15 minutes. Set `"weather": false` to turn this off.
-- **Album art** is shown from local files and from Spotify's image server (`i.scdn.co`) only. Any other remote URL a player reports is ignored.
+- **Album art** is shown from local files and from Spotify's image server (`i.scdn.co`) only, downloaded with `curl` to `$XDG_RUNTIME_DIR/glasslock-art`. Any other remote URL a player reports is ignored.
 - Media buttons work while locked, the same as on a phone's lock screen. Nothing else can be reached without your password.
 
 ## Remove
