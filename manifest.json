@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.rocanrolpsycho.glasslock",
+  "name": "Glasslock",
+  "version": "1.0.0",
+  "author": "Jozz",
+  "license": "MIT",
+  "description": "A glassy lock screen with a big clock, your avatar and greeting, weather, a mini player, and a Caps Lock warning",
+  "omarchy": {
+    "capabilities": [
+      "authentication"
+    ],
+    "clonedFrom": "omarchy.lock"
+  },
+  "kinds": [
+    "service"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml"
+  }
+}
